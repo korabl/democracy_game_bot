@@ -123,3 +123,37 @@ async def generate_character(world_data, character_details, model="gpt-4o", max_
         logger.error(f"Ошибка при генерации персонажа: {e}")
         return "Произошла ошибка при генерации персонажа."
     
+# Функция для генерации новостей через GPT
+async def generate_world_news(world_data, world_metrics, model="gpt-4o", max_tokens=6800):
+    try:
+        logger.info("Запуск генерации новостей...")
+
+        prompt = f"""
+        На основе следующего описания мира и метрик сгенерируй дайджест новостей этого мира до 800 символов.
+
+        Описание мира:
+        {world_data}
+
+        Метрики мира:
+        {world_metrics}
+
+        Пожалуйста, создай дайджест новостей, который описывает текущее состояние мира, включая важные события, изменения и тенденции, которые происходят в нем.
+        """
+
+        # Генерация персонажа с использованием модели GPT
+        response = await client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens,
+            temperature=0.7
+        )
+
+        logger.info("Ответ от OpenAI по генерации новостей получен.")
+        
+        character_data = response.choices[0].message.content.strip()  # Получаем дайджест новостей
+        return character_data
+    except Exception as e:
+        logger.error(f"Ошибка при генерации новостей: {e}")
+        return "Произошла ошибка при генерации новостей."
+    
+    

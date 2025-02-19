@@ -162,6 +162,40 @@ def save_chatacters_to_db(world_id, user_id, character_description):
         logger.error(f"Ошибка при сохранении персонажа: {e}")
         return None
     
+# Функция для сохранения новостей в базу данных
+def save_world_news_to_db(world_id, world_news):
+    try:
+        if not world_news:
+            logger.warning(f"Мир с ID {world_id} не имеет новостей для записи.")
+            return None  # Если нет новостей, не записываем их
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Логируем полученные данные
+        logger.info(f"Записываем новости для мира с ID {world_id}: {world_news}")
+
+        # Запись новости в таблицу WORLD_METRICS
+        cursor.execute(
+            "INSERT INTO WORLD_METRICS (world_id, world_news) VALUES (%s, %s) RETURNING metric_id",
+            (world_id, world_news)
+        )
+        
+        # Получаем сгенерированный metric_id
+        metric_id = cursor.fetchone()[0]
+        conn.commit()  # Сохраняем изменения в базе данных
+
+        logger.info(f"Персонаж успешно создан с ID {metric_id}.")
+
+        cursor.close()
+        conn.close()
+
+        return metric_id
+
+    except Exception as e:
+        logger.error(f"Ошибка при сохранении новостей: {e}")
+        return None
+    
 # Функция для получения описания мира по world_id
 def get_world_description_by_id(world_id):
     try:
@@ -182,6 +216,29 @@ def get_world_description_by_id(world_id):
 
     except Exception as e:
         logger.error(f"Ошибка при получении описания мира для world_id {world_id}: {e}")
+        return None
+
+
+# Функция для получения метрик мира по world_id
+def get_world_metrics_by_id(world_id):
+    try:
+        conn = get_db_connection()  # Соединяемся с базой данных
+        cursor = conn.cursor()
+
+        # Запрос для получения описания мира по world_id
+        cursor.execute("SELECT metrics FROM world_metrics WHERE world_id = %s", (world_id,))
+        world_metrics = cursor.fetchone()  # Получаем результат
+
+        cursor.close()
+        conn.close()
+
+        if world_metrics:
+            return world_metrics[0]  # Возвращаем описание мира
+        else:
+            return None  # Если ничего не найдено, возвращаем None
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении метрик мира для world_id {world_id}: {e}")
         return None
 
 

@@ -1,8 +1,8 @@
 import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler
-from game_world import generate_world_from_gpt, generate_world_metrics, generate_character
-from database import save_world_to_db, create_user, save_world_metrics_to_db, save_chatacters_to_db, get_user_id_by_telegram_id, get_world_description_by_id
+from game_world import generate_world_from_gpt, generate_world_metrics, generate_character, generate_world_news
+from database import save_world_to_db, create_user, save_world_metrics_to_db, save_chatacters_to_db, get_user_id_by_telegram_id, get_world_description_by_id, get_world_metrics_by_id, save_world_news_to_db
 from dotenv import load_dotenv
 import os
 
@@ -26,6 +26,9 @@ else:
 
 print(f"Using bot API: {TELEGRAM_API_KEY}")  # Для проверки, какой ключ используется
 
+
+
+### ОСНОВНОЙ ФУНКЦИОНАЛ ###
 
 # Команда /start для бота
 async def start(update: Update, context: CallbackContext):
@@ -122,7 +125,7 @@ async def receive_character_details(update: Update, context: CallbackContext):
     # Сохраняем данные в context, чтобы использовать их для генерации персонажа
     context.user_data['character_details'] = character_details
 
-    # Сохраняем world_id и user_id из context
+    # Получаем world_id и user_id из context
     world_id = context.user_data.get('world_id')
     user_id = context.user_data.get('user_id')  
 
@@ -131,6 +134,7 @@ async def receive_character_details(update: Update, context: CallbackContext):
 
     # Генерация персонажа с помощью GPT
     world_data = get_world_description_by_id(world_id)
+    context.user_data['world_data'] = world_data  # Сохраняем описание мира в context
     character_description = await generate_character(world_data, character_details)
 
     # Сохраняем персонажа в базу данных
@@ -139,5 +143,28 @@ async def receive_character_details(update: Update, context: CallbackContext):
     # Отправляем сгенерированное описание персонажа
     await update.message.reply_text(f"Вот твой персонаж: {character_description}")
 
+    # Выводим дайджест актульных новостей
+    intro_text = "Вот твоя подборка актуальных новостей!"
 
-   
+    # Отправляем сообщение пользователю
+    await update.message.reply_text(intro_text)
+
+    # Подготавливаем дайджест новостей для пользователя
+    logger.info("Попытка вызвать генерацию новостей для мира...")
+    world_data = context.user_data.get('world_data')    # Получаем world_data из context
+    world_id = context.user_data.get('world_id')        # Получаем world_id из context
+    world_metrics = get_world_metrics_by_id(world_id)   # Получаем метрики мира из базы данных
+
+    # Генерация новостей через GPT
+    world_news = await generate_world_news(world_data, world_metrics)  # Генерация новостей с использованием await
+    logger.info(f"Генерация новостей завершена: {world_news}")
+
+    # Отправляем новости пользователю
+    if world_news:
+        await update.message.reply_text(world_news)
+
+        # Сохраняем новости в базу данных
+        save_world_news_to_db(world_id, world_news)  # Вставка в таблицу world_new
+
+    else:
+        await update.message.reply_text("Не удалось получить новости. Попробуй позже.")
