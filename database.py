@@ -1,6 +1,11 @@
 import logging
 import psycopg2
 from psycopg2 import sql
+from dotenv import load_dotenv
+import os
+
+# Загружаем переменные окружения из .env
+load_dotenv()
 
 # Включаем логирование
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
@@ -9,11 +14,11 @@ logger = logging.getLogger(__name__)
 # Функция для соединения с базой данных
 def get_db_connection():
     conn = psycopg2.connect(
-        dbname="game_world",  # Имя базы данных
-        user="postgres",      # Имя пользователя для базы данных
-        password="789077", # Пароль
-        host="localhost",     # Хост базы данных
-        port="5432"           # Порт PostgreSQL
+        dbname=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT")     
     )
     return conn
 

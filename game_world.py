@@ -1,8 +1,12 @@
-import logging
+import logging, os
+from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
+# Загружаем переменные из .env
+load_dotenv()
+
 # Инициализируем асинхронный клиент OpenAI
-client = AsyncOpenAI(api_key="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")
+client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Включаем логирование
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)

@@ -3,11 +3,28 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler
 from game_world import generate_world_from_gpt, generate_world_metrics, generate_character
 from database import save_world_to_db, create_user, save_world_metrics_to_db, save_chatacters_to_db, get_user_id_by_telegram_id, get_world_description_by_id
+from dotenv import load_dotenv
+import os
+
 logger = logging.getLogger(__name__)
 
-# Ваш API ключ для Telegram
-API_KEY = "7889681920:AAG1uIXd9jUfyqrNGViBYc_Qug6gGnpn03o"  # ПРОД
-#API_KEY = ""   #ТЕСТ
+# Загружаем переменные из .env
+load_dotenv()
+
+# Читаем переменную окружения для определения текущего окружения
+ENV = os.getenv("ENV")  # Получаем 'development' или 'production'
+
+# Читаем API ключи для теста и продакшн
+TELEGRAM_API_KEY_TEST = os.getenv("TELEGRAM_API_KEY_TEST")
+TELEGRAM_API_KEY_PROD = os.getenv("TELEGRAM_API_KEY_PROD")
+
+# В зависимости от окружения выбираем нужный API ключ
+if ENV == "production":
+    TELEGRAM_API_KEY = TELEGRAM_API_KEY_PROD
+else:
+    TELEGRAM_API_KEY = TELEGRAM_API_KEY_TEST
+
+print(f"Using bot API: {TELEGRAM_API_KEY}")  # Для проверки, какой ключ используется
 
 
 # Команда /start для бота
