@@ -1,0 +1,126 @@
+import logging
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler
+from game_world import generate_world_from_gpt, generate_world_metrics, generate_character
+from database import save_world_to_db, create_user, save_world_metrics_to_db, save_chatacters_to_db, get_user_id_by_telegram_id, get_world_description_by_id
+logger = logging.getLogger(__name__)
+
+# Ваш API ключ для Telegram
+API_KEY = "7889681920:AAG1uIXd9jUfyqrNGViBYc_Qug6gGnpn03o"  # ПРОД
+#API_KEY = ""   #ТЕСТ
+
+
+# Команда /start для бота
+async def start(update: Update, context: CallbackContext):
+    telegram_id = update.message.from_user.id
+    username = update.message.from_user.username
+    logger.info(f"Команда /start от пользователя {update.message.from_user.username}")
+
+    # Получаем user_id из базы данных по telegram_id
+    user_id = get_user_id_by_telegram_id(telegram_id)
+
+    # Сохраняем user_id в контексте, чтобы передать на следующем шаге
+    context.user_data['user_id'] = user_id
+
+    # Создаем пользователя при запуске бота
+    create_user(telegram_id, username)
+
+    # Отправляем приветственное сообщение
+    intro_text = (
+        "Добро пожаловать в мир, который мы будем строить! Нажмите 'Начать', чтобы начать игру и узнать, какие проблемы ждут вас."
+    )
+
+    # Создаем кнопку "Начать историю"
+    keyboard = [
+        [InlineKeyboardButton("Начать историю", callback_data='start_game')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(intro_text, reply_markup=reply_markup)
+
+# Обработчик нажатия на кнопку "Начать историю"
+async def start_game(update: Update, context: CallbackContext):
+    logger.info("Обработка нажатия кнопки 'Начать историю'...")
+    
+    try:
+        # Генерация мира через GPT
+        logger.info("Попытка вызвать генерацию мира через GPT...")
+        world_data = await generate_world_from_gpt()  # Получаем описание мира
+
+        # Записываем описание мира в базу данных
+        world_id = save_world_to_db(world_data)  # Вставка в таблицу worlds
+
+        if not world_id:
+            await update.callback_query.message.edit_text("Ошибка при записи мира в базу данных.")
+            return
+
+        # Сохраняем world_id в контексте, чтобы передать на следующем шаге
+        context.user_data['world_id'] = world_id
+
+        # Логируем успешный вызов
+        logger.info(f"Мир с ID {world_id} успешно записан в базу данных.")
+
+        # Выводим описания мира пользователю без ожидания генерации метрик
+        await update.callback_query.message.edit_text(f"{world_data}")
+
+        # Второе сообщение с текстом "Давай сделаем персонажа"
+        intro_text = "Давай теперь создадим персонажа!"
+
+        keyboard = [
+            [InlineKeyboardButton("Создать персонажа", callback_data='start_character_creation')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        # Отправляем сообщение о создании персонажа
+        await update.callback_query.message.reply_text(intro_text, reply_markup=reply_markup)
+
+        # Генерация метрик для мира
+        logger.info("Попытка вызвать генерацию метрик для мира...")
+        metrics_data = await generate_world_metrics(world_data)  # Генерация метрик от GPT
+
+        if not metrics_data:
+            await update.callback_query.message.edit_text("Ошибка при генерации метрик для мира.")
+            return
+
+        # Записываем метрики мира в базу данных
+        metric_id = save_world_metrics_to_db(world_id, metrics_data)  # Вставка в таблицу world_metrics
+        logger.info(f"Метрики мира с ID мира {world_id} успешно записаны в базу данных.")
+
+    except Exception as e:
+        await update.callback_query.message.edit_text("Произошла ошибка при генерации мира в обработчике нажатия кнопки 'Начать'.")
+        logger.error(f"Ошибка при генерации мира: {e}")
+
+# Обработчик для создания персонажа
+async def start_character_creation(update: Update, context: CallbackContext):
+    logger.info("Начинаем создание персонажа...")
+
+    # Запрашиваем у пользователя имя персонажа
+    await update.callback_query.message.edit_text("Расскажите о имя своём персонаже! Можешь поделиться любыми деталями, которыми захочется!\nНаример, имя, возрат, пофессия, харакетер.\nА если не хочется никого придумывать, просто напиши 'Любой'!")
+
+
+# Эта функция срабатывает, когда пользователь отправляет текст
+async def receive_character_details(update: Update, context: CallbackContext):
+    character_details = update.message.text  # Получаем текст от пользователя
+
+    # Сохраняем данные в context, чтобы использовать их для генерации персонажа
+    context.user_data['character_details'] = character_details
+
+    # Сохраняем world_id и user_id из context
+    world_id = context.user_data.get('world_id')
+    user_id = context.user_data.get('user_id')  
+
+    # Отправляем подтверждение пользователю
+    await update.message.reply_text(f"Спасибо! Ты выбрал: {character_details}. Теперь я создам персонажа.")
+
+    # Генерация персонажа с помощью GPT
+    world_data = get_world_description_by_id(world_id)
+    character_description = await generate_character(world_data, character_details)
+
+    # Сохраняем персонажа в базу данных
+    save_chatacters_to_db(world_id, user_id, character_description)  # Вставка в таблицу characters
+
+    # Отправляем сгенерированное описание персонажа
+    await update.message.reply_text(f"Вот твой персонаж: {character_description}")
+
+
+   
