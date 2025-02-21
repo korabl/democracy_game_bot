@@ -10,6 +10,7 @@ CREATE TABLE users (
     telegram_id INT NOT NULL UNIQUE,      -- ID пользователя из Telegram
     nickname VARCHAR(255),            -- Никнейм игрока (если есть)
     date_joined TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Дата присоединения
+    in_game_year INT                   -- Внутриигровой год
     is_active BOOLEAN DEFAULT TRUE    -- Флаг активности пользователя
 );
 
@@ -36,7 +37,6 @@ CREATE TABLE characters (
 CREATE TABLE world_metrics (
     metric_id SERIAL PRIMARY KEY,         -- Уникальный ID метрики
     world_id INT REFERENCES worlds(world_id), -- Ссылка на мир
-    in_game_year INT,                      -- Внутриигровой год
     metrics TEXT,                    -- Текстовое хранение метрик
     world_news TEXT,                    -- Новостной дайджест к этому миру
     date_generated TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Время генерации метрики
@@ -50,7 +50,6 @@ CREATE TABLE world_statistics (
     user_id INT REFERENCES users(user_id),  -- Ссылка на пользователя
     initiative_description TEXT,       -- Описание инициативы
     gpt_response TEXT,                 -- Ответ GPT
-    in_game_year INT,                   -- Внутриигровой год
     change_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Дата изменения
 );
 

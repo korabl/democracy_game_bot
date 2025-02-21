@@ -1,9 +1,10 @@
 import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler
-from game_world import generate_world_from_gpt, generate_world_metrics, generate_character, generate_world_news
+from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler, ConversationHandler, MessageHandler, filters
+from game_world import generate_world_from_gpt, generate_world_metrics, generate_character, generate_world_news, generate_world_changes
 from database import save_world_to_db, create_user, save_world_metrics_to_db, save_chatacters_to_db, get_user_id_by_telegram_id, get_world_description_by_id, get_world_metrics_by_id, save_world_news_to_db
 from dotenv import load_dotenv
+from states import WAITING_FOR_CHARACTER_DETAILS, WAITING_FOR_INITIATIVE  # Импортируем состояния
 import os
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,6 @@ else:
     TELEGRAM_API_KEY = TELEGRAM_API_KEY_TEST
 
 print(f"Using bot API: {TELEGRAM_API_KEY}")  # Для проверки, какой ключ используется
-
 
 
 ### ОСНОВНОЙ ФУНКЦИОНАЛ ###
@@ -109,6 +109,7 @@ async def start_game(update: Update, context: CallbackContext):
     except Exception as e:
         await update.callback_query.message.edit_text("Произошла ошибка при генерации мира в обработчике нажатия кнопки 'Начать'.")
         logger.error(f"Ошибка при генерации мира: {e}")
+    
 
 # Обработчик для создания персонажа
 async def start_character_creation(update: Update, context: CallbackContext):
@@ -117,10 +118,12 @@ async def start_character_creation(update: Update, context: CallbackContext):
     # Запрашиваем у пользователя имя персонажа
     await update.callback_query.message.edit_text("Расскажите о имя своём персонаже! Можешь поделиться любыми деталями, которыми захочется!\nНаример, имя, возрат, пофессия, харакетер.\nА если не хочется никого придумывать, просто напиши 'Любой'!")
 
+    return WAITING_FOR_CHARACTER_DETAILS
 
-# Эта функция срабатывает, когда пользователь отправляет текст
+# Эта функция срабатывает, когда пользователь отправляет описание своего персонажа
 async def receive_character_details(update: Update, context: CallbackContext):
     character_details = update.message.text  # Получаем текст от пользователя
+    logger.info("Получили описание персонажа от пользователя...")
 
     # Сохраняем данные в context, чтобы использовать их для генерации персонажа
     context.user_data['character_details'] = character_details
@@ -143,7 +146,7 @@ async def receive_character_details(update: Update, context: CallbackContext):
     # Отправляем сгенерированное описание персонажа
     await update.message.reply_text(f"Вот твой персонаж: {character_description}")
 
-    # Выводим дайджест актульных новостей
+    # Выводим дайджест актуальных новостей
     intro_text = "Вот твоя подборка актуальных новостей!"
 
     # Отправляем сообщение пользователю
@@ -168,3 +171,91 @@ async def receive_character_details(update: Update, context: CallbackContext):
 
     else:
         await update.message.reply_text("Не удалось получить новости. Попробуй позже.")
+
+    # Отправляем сообщение с текстом "Давай внесём инициативу!"
+    intro_text = "Давай теперь внесём инициативу!"
+
+    # Создаем клавиатуру с кнопкой
+    keyboard = [
+        [InlineKeyboardButton("Внести инициативу", callback_data='start_initiation')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Отправляем сообщение с кнопкой
+    await update.message.reply_text(intro_text, reply_markup=reply_markup)
+
+    return WAITING_FOR_INITIATIVE
+
+# Обработчик для внесения инициативы (когда пользователь нажимает на кнопку)
+async def start_initiation(update: Update, context: CallbackContext):
+    logger.info("Начинаем внесение инициативы...")
+
+    # Ответ на нажатие кнопки
+    await update.callback_query.message.edit_text(
+        "Опиши свою инициативу! Можешь поделиться любыми деталями, которыми захочется!\nНаример, какие проблемы ты видишь в мире, какие изменения хочешь внести, какие идеи у тебя есть.\nА если не хочется ничего придумывать, просто напиши 'Любой'!"
+    )
+    # Подтверждаем, что callback_query обработан
+    await update.callback_query.answer()
+
+    return WAITING_FOR_INITIATIVE  # Ожидаем текст инициативы
+
+# Эта функция срабатывает, когда пользователь отправляет текст инициативы
+async def receive_initiative_details(update: Update, context: CallbackContext):
+    # Получаем текст инициативы от пользователя
+    initiation_details = update.message.text
+
+    # Сохраняем данные в context
+    context.user_data['initiation_details'] = initiation_details
+
+    # Отправляем подтверждение пользователю
+    await update.message.reply_text(f"Спасибо! Твоя инициатива: {initiation_details}.")
+
+    # Генерация изменений мира на основе инициативы от GPT
+    world_data = context.user_data.get('world_data')    # Получаем world_data из context
+    initiate_result = await generate_world_changes(world_data, initiation_details)
+
+    # Отправляем сгенерированное изменение мира
+    await update.message.reply_text(f"Вот твой результат: {initiate_result}")
+
+    # Выводим дайджест актуальных новостей
+    intro_text = "Вот твоя подборка актуальных новостей спустя год!"
+
+    # Отправляем сообщение пользователю
+    await update.message.reply_text(intro_text)
+
+    # Подготавливаем дайджест новостей для пользователя
+    logger.info("Попытка вызвать генерацию новостей для мира...")
+    world_id = context.user_data.get('world_id')        # Получаем world_id из context
+    world_metrics = get_world_metrics_by_id(world_id)   # Получаем метрики мира из базы данных
+
+    # Генерация метрик нового мира
+    world_metrics = await generate_world_metrics(initiate_result)  # Генерация метрик от GPT
+
+    # Генерация новостей через GPT
+    world_news = await generate_world_news(initiate_result, world_metrics)  # Генерация новостей с использованием await
+    logger.info(f"Генерация новостей завершена: {world_news}")
+
+    # Отправляем новости пользователю
+    if world_news:
+        await update.message.reply_text(world_news)
+
+        # Сохраняем новости в базу данных
+        # save_world_news_to_db(world_id, world_news)  # Вставка в таблицу world_new
+
+    else:
+        await update.message.reply_text("Не удалось получить новости. Попробуй позже.")
+
+    # Отправляем сообщение с текстом "Давай внесём инициативу!"
+    intro_text = "Давай теперь внесём инициативу!"
+
+    # Создаем клавиатуру с кнопкой
+    keyboard = [
+        [InlineKeyboardButton("Внести инициативу", callback_data='start_initiation')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Отправляем сообщение с кнопкой
+    await update.message.reply_text(intro_text, reply_markup=reply_markup)
+
+    return WAITING_FOR_INITIATIVE  # Ожидаем следующий ввод инициативы
+
