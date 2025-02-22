@@ -9,3 +9,6 @@ __pycache__/
 
 # Логи
 *.log
+
+# Заметки
+git_help.txt
