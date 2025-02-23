@@ -6,6 +6,7 @@ from database import save_world_to_db, create_user, save_world_metrics_to_db, sa
 from dotenv import load_dotenv
 from states import WAITING_FOR_CHARACTER_DETAILS, WAITING_FOR_INITIATIVE  # Импортируем состояния
 import os
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -65,10 +66,17 @@ async def start_game(update: Update, context: CallbackContext):
     try:
         # Генерация мира через GPT
         logger.info("Попытка вызвать генерацию мира через GPT...")
-        world_data = await generate_world_from_gpt()  # Получаем описание мира
+        
+        # Генерируем случайный год от -10 000 (первые общины) до 2025 (наши дни)
+        game_year = random.randint(-10000, 2025)
+
+        # Сохраняем world_id в контексте, чтобы передать на следующем шаге
+        context.user_data['game_year'] = game_year
+
+        world_data = await generate_world_from_gpt(game_year)  # Получаем описание мира
 
         # Записываем описание мира в базу данных
-        world_id = save_world_to_db(world_data)  # Вставка в таблицу worlds
+        world_id = save_world_to_db(game_year, world_data)  # Вставка в таблицу worlds
 
         if not world_id:
             await update.callback_query.message.edit_text("Ошибка при записи мира в базу данных.")
@@ -139,6 +147,7 @@ async def receive_character_details(update: Update, context: CallbackContext):
     world_data = get_world_description_by_id(world_id)
     context.user_data['world_data'] = world_data  # Сохраняем описание мира в context
     character_description = await generate_character(world_data, character_details)
+    context.user_data['character_description'] = character_description  # Сохраняем описание персонажа в context
 
     # Сохраняем персонажа в базу данных
     save_chatacters_to_db(world_id, user_id, character_description)  # Вставка в таблицу characters
@@ -159,7 +168,8 @@ async def receive_character_details(update: Update, context: CallbackContext):
     world_metrics = get_world_metrics_by_id(world_id)   # Получаем метрики мира из базы данных
 
     # Генерация новостей через GPT
-    world_news = await generate_world_news(world_data, world_metrics)  # Генерация новостей с использованием await
+    game_year = context.user_data.get('game_year')      # Получаем game_year из context
+    world_news = await generate_world_news(game_year, world_data, world_metrics)  # Генерация новостей с использованием await
     logger.info(f"Генерация новостей завершена: {world_news}")
 
     # Отправляем новости пользователю
@@ -211,8 +221,13 @@ async def receive_initiative_details(update: Update, context: CallbackContext):
     await update.message.reply_text(f"Спасибо! Твоя инициатива: {initiation_details}.")
 
     # Генерация изменений мира на основе инициативы от GPT
+    next_game_year = context.user_data.get('game_year') + 1   # Получаем game_year из context
+    context.user_data['game_year'] = next_game_year    # Перезаписываем next_game_year в context
+    logger.info(f"Следующий год: {next_game_year}")
+
     world_data = context.user_data.get('world_data')    # Получаем world_data из context
-    initiate_result = await generate_world_changes(world_data, initiation_details)
+    сharacter_description = context.user_data.get('character_description')  # Получаем character_description из context
+    initiate_result = await generate_world_changes(сharacter_description, next_game_year, world_data, initiation_details)
 
     # Отправляем сгенерированное изменение мира
     await update.message.reply_text(f"Вот твой результат: {initiate_result}")
@@ -232,7 +247,7 @@ async def receive_initiative_details(update: Update, context: CallbackContext):
     world_metrics = await generate_world_metrics(initiate_result)  # Генерация метрик от GPT
 
     # Генерация новостей через GPT
-    world_news = await generate_world_news(initiate_result, world_metrics)  # Генерация новостей с использованием await
+    world_news = await generate_world_news(next_game_year, initiate_result, world_metrics)  # Генерация новостей с использованием await
     logger.info(f"Генерация новостей завершена: {world_news}")
 
     # Отправляем новости пользователю

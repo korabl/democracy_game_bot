@@ -50,7 +50,7 @@ def create_user(telegram_id, username):
         print(f"Ошибка при добавлении пользователя в базу данных: {e}")
 
 # Функция для стратового сохранения мира в базу данных
-def save_world_to_db(world_description):
+def save_world_to_db(in_game_year, world_description):
     if not world_description:
         print("Ошибка: описание мира пустое!")
         return None
@@ -63,8 +63,8 @@ def save_world_to_db(world_description):
         print(f"Записываем описание мира: {world_description}")
 
         cursor.execute(
-            "INSERT INTO worlds (world_description, date_generated) VALUES (%s, CURRENT_TIMESTAMP) RETURNING world_id",
-            (world_description,)
+            "INSERT INTO worlds (in_game_year, world_description, date_generated) VALUES (%s, %s, CURRENT_TIMESTAMP) RETURNING world_id",
+            (in_game_year, world_description)
         )
         
         # Получаем сгенерированный world_id
