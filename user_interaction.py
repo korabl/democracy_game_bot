@@ -1,7 +1,7 @@
 import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler, ConversationHandler, MessageHandler, filters
-from game_world import generate_world_from_gpt, generate_world_metrics, generate_character, generate_world_news, generate_world_changes
+from game_world import generate_world_from_gpt, generate_world_metrics, generate_character, generate_world_news, generate_world_changes, update_world_metrics
 from database import save_world_to_db, create_user, save_world_metrics_to_db, save_chatacters_to_db, get_user_id_by_telegram_id, get_world_description_by_id, save_world_news_to_db, get_latest_world_metrics
 from dotenv import load_dotenv
 from states import WAITING_FOR_CHARACTER_DETAILS, WAITING_FOR_INITIATIVE  # Импортируем состояния
@@ -122,6 +122,7 @@ async def start_game(update: Update, context: CallbackContext):
 
         # Записываем метрики мира в базу данных
         save_world_metrics_to_db(world_id, metrics_dict)  # Вставка в таблицу world_metrics
+        context.user_data['metrics_dict'] = metrics_dict  # Сохраняем описание мира в контексте
         logger.info(f"Метрики мира с ID мира {world_id} успешно записаны в базу данных.")
 
     except Exception as e:
@@ -174,7 +175,7 @@ async def receive_character_details(update: Update, context: CallbackContext):
     logger.info("Попытка вызвать генерацию новостей для мира...")
     world_data = context.user_data.get('world_data')    # Получаем world_data из context
     world_id = context.user_data.get('world_id')        # Получаем world_id из context
-    world_metrics = get_latest_world_metrics(world_id)   # Получаем актуальные метрики мира из базы данных
+    world_metrics = context.user_data.get('metrics_dict')  # Получаем актуальные метрики мира из контекста
 
     # Генерация новостей через GPT
     game_year = context.user_data.get('game_year')      # Получаем game_year из context
@@ -237,44 +238,66 @@ async def receive_initiative_details(update: Update, context: CallbackContext):
     world_data = context.user_data.get('world_data')    # Получаем world_data из context
     сharacter_description = context.user_data.get('character_description')  # Получаем character_description из context
     initiate_result = await generate_world_changes(сharacter_description, next_game_year, world_data, initiation_details)
-    context.user_data['world_data'] += f"\n\n Год: {next_game_year}\n Инициатива игрока: {initiation_details}\n Изменения: {initiate_result}"   # Добавляем изменения в контекст описание мира
 
     # Отправляем сгенерированное изменение мира
     await update.message.reply_text(f"Вот твой результат: {initiate_result}")
+
+    # Апдейт метрик для мира после инициативы пользователя
+    logger.info("Попытка вызвать обновление метрик для мира...")
+    gpt_response = await update_world_metrics(world_data, initiation_details)  # Генерация метрик от GPT
+    print(f"Изменения метрик нового мира: {gpt_response}")
+
+    if not gpt_response:
+        await update.callback_query.message.edit_text("Ошибка при генерации обновления метрик для мира.")
+        return
+    
+    # Удаляем ```json и ``` с помощью регулярного выражения
+    cleaned_response = re.sub(r"```json|```", "", gpt_response).strip()
+    print(f"Ответ GPT после очистки: {cleaned_response}")  # Логируем после очистки
+
+    # Преобразуем строку в словарь
+    try:
+        metrics_dict = json.loads(cleaned_response)
+        print("Изменения метрик успешно распарсены:", metrics_dict)
+    except json.JSONDecodeError as e:
+        print(f"Ошибка парсинга JSON: {e}")
+    
+    # Получаем текущие метрики
+    world_metrics = context.user_data.get('metrics_dict')  # Получаем актуальные метрики мира из контекста
+    
+    # Определяем, какие изменения вносим (суммируем старые и новые значения)
+    updated_metrics = {}
+
+    # Преобразуем строковые значения "+" и "-" в числа (1 и -1 соответственно)
+    for key in world_metrics:
+        if metrics_dict[key] == "+":
+            updated_metrics[key] = world_metrics[key] + 1
+        elif metrics_dict[key] == "-":
+            updated_metrics[key] = world_metrics[key] - 1
+        elif metrics_dict[key] == "0":
+            updated_metrics[key] = world_metrics[key]
+        else:
+            # Если пришло число, просто складываем
+            updated_metrics[key] = world_metrics[key] + int(metrics_dict.get(key, 0))
+
+    print(f"Обновленные метрики: {updated_metrics}")
+
+
+    # Обновляем метрики в БД
+    world_id = context.user_data.get('world_id')    # Получаем world_data из context
+    context.user_data['metrics_dict'] = updated_metrics  # Сохраняем описание метрик в context
+    save_world_metrics_to_db(world_id, updated_metrics)
+
+    print(f"✅ Метрики обновлены для мира {world_id}: {updated_metrics}")
 
     # Выводим дайджест актуальных новостей
     intro_text = "Вот твоя подборка актуальных новостей спустя год!"
 
     # Отправляем сообщение пользователю
     await update.message.reply_text(intro_text)
-
-    # Подготавливаем дайджест новостей для пользователя
-    # logger.info("Попытка вызвать генерацию новостей для мира...")
-    # world_id = context.user_data.get('world_id')        # Получаем world_id из context
-    # world_metrics = get_world_metrics_by_id(world_id)   # Получаем метрики мира из базы данных
-
-    # Генерация метрик для мира
-    logger.info("Попытка вызвать генерацию метрик для мира...")
-    gpt_response = await generate_world_metrics(initiate_result)  # Генерация метрик от GPT
-    print(f"Метрики нового мира: {gpt_response}")
-
-    if not gpt_response:
-        await update.callback_query.message.edit_text("Ошибка при генерации метрик для мира.")
-        return
-    
-    # Преобразуем строку в словарь
-    try:
-        metrics_dict = json.loads(gpt_response)
-        print("Метрики успешно распарсены:", metrics_dict)
-    except json.JSONDecodeError as e:
-        print(f"Ошибка парсинга JSON: {e}")
-
-    # Записываем метрики мира в базу данных
-    # save_world_metrics_to_db(world_id, metrics_dict)  # Вставка в таблицу world_metrics
-    # logger.info(f"Метрики мира с ID мира {world_id} успешно записаны в базу данных.")
     
     # Генерация новостей через GPT
-    world_news = await generate_world_news(next_game_year, initiate_result, metrics_dict)  # Генерация новостей с использованием await
+    world_news = await generate_world_news(next_game_year, initiate_result, updated_metrics)  # Генерация новостей с использованием await
     logger.info(f"Генерация новостей завершена: {world_news}")
 
     # Отправляем новости пользователю
@@ -286,6 +309,9 @@ async def receive_initiative_details(update: Update, context: CallbackContext):
 
     else:
         await update.message.reply_text("Не удалось получить новости. Попробуй позже.")
+    
+    # Обновляем контекст и заносим в краткосрочную память
+    context.user_data['world_data'] += f"\n\n Год: {next_game_year}\n Инициатива игрока: {initiation_details}\n Изменения: {initiate_result}"   
 
     # Отправляем сообщение с текстом "Давай внесём инициативу!"
     intro_text = "Давай теперь внесём инициативу!"
