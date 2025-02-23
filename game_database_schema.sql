@@ -37,8 +37,12 @@ CREATE TABLE characters (
 CREATE TABLE world_metrics (
     metric_id SERIAL PRIMARY KEY,         -- Уникальный ID метрики
     world_id INT REFERENCES worlds(world_id), -- Ссылка на мир
-    metrics TEXT,                    -- Текстовое хранение метрик
     world_news TEXT,                    -- Новостной дайджест к этому миру
+    economy_metric INT,                 -- Метрика экономики
+    social_stability_metric INT,        -- Метрика социальной стабильности  
+    ecology_metric INT,                 -- Метрика экологии
+    security_metric INT,                -- Метрика безопасности
+    political_support_metric INT,       -- Метрика политической поддержки
     date_generated TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Время генерации метрики
 );
 
