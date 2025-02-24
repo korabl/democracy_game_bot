@@ -1,8 +1,8 @@
 import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler, ConversationHandler, MessageHandler, filters
-from game_world import generate_world_from_gpt, generate_world_metrics, generate_character, generate_world_news, generate_world_changes, update_world_metrics
-from database import save_world_to_db, create_user, save_world_metrics_to_db, save_chatacters_to_db, get_user_id_by_telegram_id, get_world_description_by_id, save_world_news_to_db, get_latest_world_metrics
+from game_world import generate_world_from_gpt, generate_world_metrics, generate_character, generate_world_news, generate_world_changes, update_world_metrics, generate_world_resources
+from database import save_world_to_db, create_user, save_world_metrics_to_db, save_chatacters_to_db, get_user_id_by_telegram_id, get_world_description_by_id, save_world_news_to_db, get_latest_world_metrics, save_world_resources_to_db
 from dotenv import load_dotenv
 from states import WAITING_FOR_CHARACTER_DETAILS, WAITING_FOR_INITIATIVE  # Импортируем состояния
 import os, json, random, re
@@ -125,6 +125,30 @@ async def start_game(update: Update, context: CallbackContext):
         context.user_data['metrics_dict'] = metrics_dict  # Сохраняем описание мира в контексте
         logger.info(f"Метрики мира с ID мира {world_id} успешно записаны в базу данных.")
 
+        # Генерация ресурсов для мира
+        logger.info("Попытка вызвать генерацию ресурсов для мира...")
+        gpt_response = await generate_world_resources(metrics_dict, world_data)  # Генерация ресурсов от GPT
+        print(f"Ресурсы мира: {gpt_response}")
+
+        if not gpt_response:
+            await update.callback_query.message.edit_text("Ошибка при генерации ресурсов для мира.")
+            return
+        
+        # Распаршеваем ответ от ГПТ
+        gpt_response_cleaned = re.sub(r"```python|```", "", gpt_response).strip()   # Убираем кодовый блок и излишние пробелы/символы
+
+        # Преобразуем строку в словарь
+        try:
+            resources_dict = json.loads(gpt_response_cleaned)
+            print("Ресурсы успешно распарсены:", resources_dict)
+        except json.JSONDecodeError as e:
+            print(f"Ошибка парсинга JSON: {e}")
+
+        # Записываем ресурсы мира в базу данных
+        save_world_resources_to_db(world_id, resources_dict)  # Вставка в таблицу world_metrics
+        context.user_data['resources_dict'] = resources_dict  # Сохраняем ресурсы мира в контексте
+        logger.info(f"Ресурсы мира с ID мира {world_id} успешно записаны в базу данных.")
+
     except Exception as e:
         await update.callback_query.message.edit_text("Произошла ошибка при генерации мира в обработчике нажатия кнопки 'Начать историю'.")
         logger.error(f"Ошибка при генерации мира: {e}")
@@ -231,6 +255,7 @@ async def receive_initiative_details(update: Update, context: CallbackContext):
     await update.message.reply_text(f"Спасибо! Твоя инициатива: {initiation_details}.")
 
     # Генерация изменений мира на основе инициативы от GPT
+    # world_resources = context.user_data.get('resources_dict')    # Получаем ресурсы из context
     next_game_year = context.user_data.get('game_year') + 1   # Получаем game_year из context
     context.user_data['game_year'] = next_game_year    # Перезаписываем next_game_year в context
     logger.info(f"Следующий год: {next_game_year}")
@@ -281,7 +306,6 @@ async def receive_initiative_details(update: Update, context: CallbackContext):
             updated_metrics[key] = world_metrics[key] + int(metrics_dict.get(key, 0))
 
     print(f"Обновленные метрики: {updated_metrics}")
-
 
     # Обновляем метрики в БД
     world_id = context.user_data.get('world_id')    # Получаем world_data из context

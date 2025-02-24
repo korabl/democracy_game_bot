@@ -294,3 +294,34 @@ def get_latest_world_metrics(world_id):
         return None
 
     
+# Записываем ресурсы мира в базу данных
+def save_world_resources_to_db(world_id, resources):
+    try:
+        # Извлекаем ресурсы из словаря
+        money_resource = resources.get("money_resource", 0)
+        people_resource = resources.get("people_resource", 0)
+
+        # Установим соединение с базой данных
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Вставляем метрики в таблицу world_resources
+        cursor.execute(
+            """
+            INSERT INTO world_resources 
+            (world_id, money_resource, people_resource, date_generated)
+            VALUES (%s, %s, CURRENT_TIMESTAMP)
+            """,
+            (world_id, money_resource, people_resource)
+        )
+
+        conn.commit()  # Подтверждаем изменения
+
+        # Логируем успешную запись данных
+        logger.info(f"Ресурсы успешно записаны для мира с ID {world_id}.")
+
+        cursor.close()
+        conn.close()
+
+    except Exception as e:
+        logger.error(f"Ошибка при сохранении ресурсов мира: {e}")
