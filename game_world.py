@@ -15,17 +15,11 @@ logger = logging.getLogger(__name__)
 async def generate_world_from_gpt(game_year, max_tokens=800):
     try:
         logger.info("Запуск генерации мира...")  # Логируем начало функции
-        
-        # Определяем формат вывода года
-        if game_year < 0:
-            formatted_year = f"{abs(game_year)} год до н.э."
-        else:
-            formatted_year = f"{game_year} год н.э."
 
         prompt = f"""
-        Внутриигровой год: {formatted_year} 
+        Внутриигровой год: {format_year(game_year)} 
 
-        Сгенерируй новый мир для для {formatted_year} года. Забудь все, о чем мы говорили до этого момента.
+        Сгенерируй новый мир для для {format_year(game_year)} года. Забудь все, о чем мы говорили до этого момента.
         Фокусируйся на этом временном промежутке - погрузи игрока в мир, расскажи о проблемах и вызовах, соответствующие этому времени. 
         Текст должен быть написан в художественном стиле, напоминающем Тарантино или Гая Ричи, с драматургией, но без выхода за рамки реальной физики. 
         Сохраняй историческую правдоподобность, делая мир напряжённым и погружающим, с яркими фразами, чтобы передать атмосферу времени.
@@ -233,12 +227,6 @@ async def generate_world_news(game_year, world_data, world_metrics, max_tokens=6
     try:
         logger.info("Запуск генерации новостей...")
 
-        # Определяем формат вывода года
-        if game_year < 0:
-            formatted_year = f"{abs(game_year)} год до н.э."
-        else:
-            formatted_year = f"{game_year} год н.э."
-
         prompt = f"""
         На основе следующего описания мира и метрик сгенерируй дайджест новостей этого мира до 800 символов.
 
@@ -249,7 +237,7 @@ async def generate_world_news(game_year, world_data, world_metrics, max_tokens=6
         {world_metrics}
 
         Внутриигровой год: 
-        {formatted_year}
+        {format_year(game_year)}
 
         Пожалуйста, создай дайджест новостей, который описывает текущее состояние мира этого года, включая важные события, изменения и тенденции, которые происходят в нем.
         Стиль повествования новостей должны соответствовать и отрожать достоверно эпоху, в которой они происходят (внутриигровой год) и использовать слова, доступные языку этого времени.
@@ -276,12 +264,6 @@ async def generate_world_changes(character_description, game_year, world_data, u
     try:
         logger.info("Запуск генерации изменений мира...")  # Логируем начало функции
 
-        # Определяем формат вывода года
-        if game_year < 0:
-            formatted_year = f"{abs(game_year)} год до н.э."
-        else:
-            formatted_year = f"{game_year} год н.э."
-        
         prompt = f"""
         Инициатива от пользователя:
         {user_initiation}
@@ -292,7 +274,7 @@ async def generate_world_changes(character_description, game_year, world_data, u
         {world_data}
 
         Внутриигровой год: 
-        {formatted_year}
+        {format_year(game_year)}
 
         Сгенерируй как поменяется мир через 1 год после внесения вот такой инициативы от пользователя. Помни, что изменения должны быть реалистичными и 
         соответствовать следующим законам мира:
@@ -332,4 +314,10 @@ async def generate_world_changes(character_description, game_year, world_data, u
     except Exception as e:
         logger.error(f"Ошибка при запросе к OpenAI о генерации нового мира: {e}")
         return "Произошла ошибка при генерации нового мира."
-    
+
+
+def format_year(game_year):
+    if game_year < 0:
+        return f"{abs(game_year)} год до н.э."
+
+    return f"{game_year} год н.э."
