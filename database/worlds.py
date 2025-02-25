@@ -1,9 +1,6 @@
 # worlds.py - модуль для работы с мирами в базе данных
 
 import logging
-import psycopg2
-from psycopg2 import sql
-import os
 from database.connection import get_db_connection
 
 # Включаем логирование

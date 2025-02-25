@@ -1,7 +1,6 @@
 # connection.py - модуль для подключения к базе данных
 
 import psycopg2
-from psycopg2 import sql
 from dotenv import load_dotenv
 import os
 
