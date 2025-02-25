@@ -1,19 +1,18 @@
 import logging, os
 from dotenv import load_dotenv
-from openai import AsyncOpenAI
-
+from client import Gpt
 # Загружаем переменные из .env
 load_dotenv()
 
 # Инициализируем асинхронный клиент OpenAI
-client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = Gpt(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Включаем логирование
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Функция для стартовой генерации мира через GPT
-async def generate_world_from_gpt(game_year, model="gpt-4o", max_tokens=800):
+async def generate_world_from_gpt(game_year, max_tokens=800):
     try:
         logger.info("Запуск генерации мира...")  # Логируем начало функции
         
@@ -42,16 +41,10 @@ async def generate_world_from_gpt(game_year, model="gpt-4o", max_tokens=800):
         """
         
         # Генерация текста с использованием модели GPT
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=0.75
-        )
-        
+        world_data = await client.prompt(prompt, max_tokens)
+
         logger.info("Ответ от OpenAI по генерации мира получен.")
         
-        world_data = response.choices[0].message.content.strip()  # Используем .content для получения текста
         return world_data
     except Exception as e:
         logger.error(f"Ошибка при запросе к OpenAI о генерации мира: {e}")
@@ -59,7 +52,7 @@ async def generate_world_from_gpt(game_year, model="gpt-4o", max_tokens=800):
     
 
 # Функция для генерации стартовых метрик мира через GPT
-async def generate_world_metrics(world_data, model="gpt-4o", max_tokens=1500):
+async def generate_world_metrics(world_data, max_tokens=1500):
     try:
         logger.info("Запуск генерации метрик для мира...")
 
@@ -116,23 +109,17 @@ async def generate_world_metrics(world_data, model="gpt-4o", max_tokens=1500):
         """
 
         # Генерация метрик с использованием модели GPT
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=0.7
-        )
+        metrics_data = await client.prompt(prompt, max_tokens)
 
         logger.info("Ответ от OpenAI по метрикам получен.")
         
-        metrics_data = response.choices[0].message.content.strip()  # Получаем метрики в категориях
         return metrics_data
     except Exception as e:
         logger.error(f"Ошибка при генерации метрик: {e}")
         return "Произошла ошибка при генерации метрик."
     
 # Генерация ресурсов мира через GPT
-async def generate_world_resources(world_metrics, world_data, model="gpt-4o", max_tokens=600):
+async def generate_world_resources(world_metrics, world_data, max_tokens=600):
     try:
         logger.info("Запуск генерации ресурсов мира...")
 
@@ -160,23 +147,17 @@ async def generate_world_resources(world_metrics, world_data, model="gpt-4o", ma
         """
 
         # Генерация персонажа с использованием модели GPT
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=0.7
-        )
+        character_data = await client.prompt(prompt, max_tokens)
 
         logger.info("Ответ от OpenAI по генерации ресурсов мира получен.")
         
-        character_data = response.choices[0].message.content.strip()  # Получаем описание персонажа
         return character_data
     except Exception as e:
         logger.error(f"Ошибка при генерации ресурсов мира: {e}")
         return "Произошла ошибка при генерации ресурсов мира."
     
 # Функция для апдейта метрик мира через GPT
-async def update_world_metrics(world_data, initiation_details, model="gpt-4o", max_tokens=1500):
+async def update_world_metrics(world_data, initiation_details, max_tokens=1500):
     try:
         logger.info("Запуск генерации метрик для мира...")
 
@@ -211,23 +192,17 @@ async def update_world_metrics(world_data, initiation_details, model="gpt-4o", m
         """
 
         # Генерация метрик с использованием модели GPT
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=0.7
-        )
+        metrics_data = await client.prompt(prompt, max_tokens)
 
         logger.info("Ответ от OpenAI по метрикам получен.")
         
-        metrics_data = response.choices[0].message.content.strip()  # Получаем метрики в категориях
         return metrics_data
     except Exception as e:
         logger.error(f"Ошибка при генерации метрик: {e}")
         return "Произошла ошибка при генерации метрик."
 
 # Функция для генерации персонажа через GPT
-async def generate_character(world_data, character_details, model="gpt-4o", max_tokens=600):
+async def generate_character(world_data, character_details, max_tokens=600):
     try:
         logger.info("Запуск генерации персонажа...")
 
@@ -244,23 +219,17 @@ async def generate_character(world_data, character_details, model="gpt-4o", max_
         """
 
         # Генерация персонажа с использованием модели GPT
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=0.7
-        )
+        character_data = await client.prompt(prompt, max_tokens)
 
         logger.info("Ответ от OpenAI по генерации персонажа получен.")
         
-        character_data = response.choices[0].message.content.strip()  # Получаем описание персонажа
         return character_data
     except Exception as e:
         logger.error(f"Ошибка при генерации персонажа: {e}")
         return "Произошла ошибка при генерации персонажа."
     
 # Функция для генерации новостей через GPT
-async def generate_world_news(game_year, world_data, world_metrics, model="gpt-4o", max_tokens=6800):
+async def generate_world_news(game_year, world_data, world_metrics, max_tokens=6800):
     try:
         logger.info("Запуск генерации новостей...")
 
@@ -292,16 +261,10 @@ async def generate_world_news(game_year, world_data, world_metrics, model="gpt-4
         """
 
         # Генерация персонажа с использованием модели GPT
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=0.7
-        )
+        character_data = await client.prompt(prompt, max_tokens)
 
         logger.info("Ответ от OpenAI по генерации новостей получен.")
         
-        character_data = response.choices[0].message.content.strip()  # Получаем дайджест новостей
         return character_data
     except Exception as e:
         logger.error(f"Ошибка при генерации новостей: {e}")
@@ -309,7 +272,7 @@ async def generate_world_news(game_year, world_data, world_metrics, model="gpt-4
     
     
 # Функция для генерации изменения мира через GPT на основе пользовательских инициатив
-async def generate_world_changes(character_description, game_year, world_data, user_initiation, model="gpt-4o", max_tokens=800):
+async def generate_world_changes(character_description, game_year, world_data, user_initiation, max_tokens=800):
     try:
         logger.info("Запуск генерации изменений мира...")  # Логируем начало функции
 
@@ -361,16 +324,10 @@ async def generate_world_changes(character_description, game_year, world_data, u
         """
         
         # Генерация текста с использованием модели GPT
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=0.75
-        )
+        world_data = await client.prompt(prompt, max_tokens)
         
         logger.info("Ответ от OpenAI по генерации нового мира получен.")
         
-        world_data = response.choices[0].message.content.strip()  # Используем .content для получения текста
         return world_data
     except Exception as e:
         logger.error(f"Ошибка при запросе к OpenAI о генерации нового мира: {e}")
