@@ -1,7 +1,6 @@
 # __init__.py
 
 from .connection import get_db_connection
-from .worlds import save_world_to_db, get_world_description_by_id
 from .metrics import save_world_metrics_to_db, get_world_metrics_by_id, get_latest_world_metrics
 from .resources import save_world_resources_to_db
 from .users import create_user, get_user_id_by_telegram_id
