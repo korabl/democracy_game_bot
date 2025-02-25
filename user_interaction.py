@@ -4,7 +4,7 @@ from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQ
 
 from database.worlds import World
 from game_world import generate_world_from_gpt, generate_world_metrics, generate_character, generate_world_news, generate_world_changes, update_world_metrics, generate_world_resources
-from database import create_user, save_world_metrics_to_db, save_chatacters_to_db, get_user_id_by_telegram_id, get_world_description_by_id, save_world_news_to_db, get_latest_world_metrics, save_world_resources_to_db
+from database import create_user, save_world_metrics_to_db, save_chatacters_to_db, get_user_id_by_telegram_id, save_world_news_to_db, get_latest_world_metrics, save_world_resources_to_db
 from dotenv import load_dotenv
 from states import WAITING_FOR_CHARACTER_DETAILS, WAITING_FOR_INITIATIVE  # Импортируем состояния
 import os, json, random, re
