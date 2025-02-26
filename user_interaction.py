@@ -266,7 +266,12 @@ async def receive_initiative_details(update: Update, context: CallbackContext):
 
     world_data = context.user_data.get('world_data')    # Получаем world_data из context
     сharacter_description = context.user_data.get('character_description')  # Получаем character_description из context
-    initiate_result = await generate_world_changes(сharacter_description, next_game_year, world_data, initiation_details)
+    initiate_result = await generate_initiative_result_and_resources(
+        сharacter_description,
+        next_game_year,
+        world_data,
+        initiation_details
+    )
 
     # Отправляем сгенерированное изменение мира
     await update.message.reply_text(f"Вот твой результат: {initiate_result}")
@@ -354,3 +359,18 @@ async def receive_initiative_details(update: Update, context: CallbackContext):
     await update.message.reply_text(intro_text, reply_markup=reply_markup)
 
     return WAITING_FOR_INITIATIVE  # Ожидаем следующий ввод инициативы
+
+
+async def generate_initiative_result_and_resources(сharacter_description, next_game_year, world_data,initiation_details):
+    # получить последню запись из таблицы ресурсов (current)
+    # рассчитать доступные ресурсы умножив текуший баланс на множитель
+    # передать полученные цифры в промпт
+    # budget = current.money * current.money_multiplier
+
+    initiate_result = await generate_world_changes(сharacter_description, next_game_year, world_data,initiation_details)
+    # в ответе также будет информация о затраченных ресурсах и новые множители
+    # в таблицу с ресурсами вставить запись (new)
+    # new.money = current.money * current.multiplier - response.cost
+    # new.money_multiplier = response.money_multiplier
+
+    return initiate_result
