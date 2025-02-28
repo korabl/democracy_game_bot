@@ -61,11 +61,12 @@ CREATE TABLE world_statistics (
 -- Таблица `WORLD_RESOURCES`
 -- Таблица для хранения ресурсов мира
 CREATE TABLE world_resources (
-    id SERIAL PRIMARY KEY,  -- Уникальный идентификатор записи
-    world_id INT NOT NULL,  -- ID мира, к которому относятся ресурсы
-    money_resource DECIMAL(15, 2) DEFAULT 0,  -- Ресурс в виде денег, с двумя знаками после запятой
-    people_resource INT DEFAULT 0,  -- Ресурс в виде количества людей
-    date_generated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- Время генерации записи (по умолчанию текущее время)
-    FOREIGN KEY (world_id) REFERENCES worlds(world_id) ON DELETE CASCADE  -- Ссылка на таблицу миров
+    id SERIAL PRIMARY KEY,
+    world_id INT NOT NULL,
+    money_resource DECIMAL(15, 2) DEFAULT 0,
+    money_multiplier DECIMAL(5, 2) DEFAULT 1.00,
+    people_resource INT DEFAULT 0,
+    people_multiplier DECIMAL(5, 2) DEFAULT 1.00,
+    date_generated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (world_id) REFERENCES worlds(world_id) ON DELETE CASCADE
 );
-

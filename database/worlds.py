@@ -49,3 +49,31 @@ class World:
         except Exception as e:
             logger.error(f"Ошибка при получении описания мира для world_id {world_id}: {e}")
             return None
+
+    # Обновляем описание мира после инициативы
+    def update_description(self, world_id, new_description):
+        """
+        Обновляет описание мира.
+
+        :param world_id: ID мира.
+        :param new_description: Новое описание.
+        :return: True, если успешно, иначе False.
+        """
+        if not new_description:
+            logger.error("Ошибка: новое описание мира пустое!")
+            return False
+
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE worlds
+                    SET world_description = %s
+                    WHERE world_id = %s;
+                """, (new_description, world_id))
+            self.conn.commit()
+            logger.info(f"Описание мира обновлено для world_id {world_id}.")
+            return True
+        except Exception as e:
+            logger.error(f"Ошибка при обновлении описания мира: {e}")
+            self.conn.rollback()
+            return False

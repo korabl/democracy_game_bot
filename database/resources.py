@@ -1,6 +1,7 @@
 # resources.py - модуль для записи ресурсов мира в базу данных
 
 import logging
+import psycopg2
 from database.connection import get_db_connection
 
 # Включаем логирование
@@ -38,3 +39,93 @@ def save_world_resources_to_db(world_id, resources):
 
     except Exception as e:
         logger.error(f"Ошибка при сохранении ресурсов мира: {e}")
+
+def get_current_money_from_db(connection, world_id):
+    try:
+        with connection.cursor() as cursor:
+            # Запрос для получения последних ресурсов денег (по дате создания)
+            cursor.execute("""
+                SELECT money_resource
+                FROM world_resources
+                WHERE world_id = %s
+                ORDER BY date_generated DESC  -- Сортируем по убыванию даты (последние записи в начале)
+                LIMIT 1                       -- Берём только 1 самую свежую запись
+            """, (world_id,))
+
+            result = cursor.fetchone()  # Получаем первую строку результата
+
+            if result:
+                return result[0]  # Возвращаем значение money_resource
+            else:
+                return 0  # Если данных нет, возвращаем 0
+
+    except psycopg2.Error as e:
+        print(f"Ошибка при попытке получения последних данных о деньгах в бд: {e}")
+        return None
+
+def get_current_money_multiplier_from_db(connection, world_id):
+    try:
+        with connection.cursor() as cursor:
+            # Запрос для получения последнего коэффициента денег (по дате создания)
+            cursor.execute("""
+                SELECT money_multiplier
+                FROM world_resources
+                WHERE world_id = %s
+                ORDER BY date_generated DESC  -- Сортируем по убыванию даты (последние записи в начале)
+                LIMIT 1                       -- Берём только 1 самую свежую запись
+            """, (world_id,))
+
+            result = cursor.fetchone()  # Получаем первую строку результата
+
+            if result:
+                return result[0]  # Возвращаем значение money_multiplier
+            else:
+                return 0  # Если данных нет, возвращаем 0
+
+    except psycopg2.Error as e:
+        print(f"Ошибка при попытке получения последних данных о коэф росте деньгах в бд: {e}")
+        return None
+
+
+def save_new_money_to_db(connection, world_id, new_money):
+    """
+    Обновляет ресурс денег (money_resource) для указанного мира в базе данных.
+
+    :param connection: Объект подключения к базе данных
+    :param world_id: ID мира, для которого обновляется значение
+    :param new_money: Новое значение денег (money_resource)
+    """
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                UPDATE world_resources
+                SET money_resource = %s
+                WHERE world_id = %s;
+            """, (new_money, world_id))
+        connection.commit()  # Фиксируем изменения в базе
+        print(f"Обновлено money_resource для world_id={world_id}: {new_money}")
+    except psycopg2.Error as e:
+        print(f"Ошибка при обновлении money_resource: {e}")
+        connection.rollback()  # Откатываем изменения в случае ошибки
+
+
+def save_new_money_multiplier_to_db(connection: object, world_id: object, new_multiplier: object) -> None:
+    """
+    Обновляет коэффициент роста денег (money_multiplier) для указанного мира в базе данных.
+
+    :param connection: Объект подключения к базе данных
+    :param world_id: ID мира, для которого обновляется значение
+    :param new_multiplier: Новое значение коэффициента роста денег (money_multiplier)
+    """
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                UPDATE world_resources
+                SET money_multiplier = %s
+                WHERE world_id = %s;
+            """, (new_multiplier, world_id))
+        connection.commit()  # Фиксируем изменения в базе
+        print(f"Обновлено money_multiplier для world_id={world_id}: {new_multiplier}")
+    except psycopg2.Error as e:
+        print(f"Ошибка при обновлении money_multiplier: {e}")
+        connection.rollback()  # Откатываем изменения в случае ошибки
