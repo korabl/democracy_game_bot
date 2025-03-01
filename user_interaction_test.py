@@ -9,21 +9,24 @@ logger = logging.getLogger(__name__)
 class MyTestCase(IsolatedAsyncioTestCase):
 
     async def test_generate_initiative_result_and_resources(self):
-        character_description = "Описание персонажа"
+        world_id = 1
 
-        next_game_year = 2
+        character_description = "Король Артур"
 
-        world_data = "Описание мира"
+        next_game_year = 1600
 
-        initiation_details = "Описание инициативы"
+        world_data = "Франция 16й век"
 
+        initiation_details = "Поднять налоги на 10 пунктов"
 
         response = await generate_initiative_result_and_resources(
+            world_id,
+            world_data,
             character_description,
             next_game_year,
-            world_data,
             initiation_details
         )
+
 
         logger.info(response)
 
