@@ -1,6 +1,7 @@
 # worlds.py - модуль для работы с мирами в базе данных
 
 import logging
+
 from database.connection import get_db_connection, insert_returning_id, fetchone
 
 # Включаем логирование
@@ -77,3 +78,5 @@ class World:
             logger.error(f"Ошибка при обновлении описания мира: {e}")
             self.conn.rollback()
             return False
+
+world_storage = World()

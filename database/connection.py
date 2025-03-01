@@ -44,3 +44,5 @@ def fetchone(conn, query, vars=None):
         return None
 
     return result[0]
+
+conn = get_db_connection()

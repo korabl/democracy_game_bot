@@ -104,10 +104,11 @@ async def generate_world_metrics(world_data, max_tokens=1500):
 
         # Генерация метрик с использованием модели GPT
         metrics_data = await client.prompt(prompt, max_tokens)
+        metrics_dict = client.parse_json(metrics_data)
 
         logger.info("Ответ от OpenAI по метрикам получен.")
         
-        return metrics_data
+        return metrics_dict
     except Exception as e:
         logger.error(f"Ошибка при генерации метрик: {e}")
         return "Произошла ошибка при генерации метрик."
@@ -141,11 +142,12 @@ async def generate_world_resources(world_metrics, world_data, max_tokens=600):
         """
 
         # Генерация персонажа с использованием модели GPT
-        character_data = await client.prompt(prompt, max_tokens)
+        resources_response = await client.prompt(prompt, max_tokens)
+        logger.info("Ответ от OpenAI по генерации ресурсов мира получен.", resources_response)
+        resources_dict = client.parse_json(resources_response)
 
-        logger.info("Ответ от OpenAI по генерации ресурсов мира получен.")
-        
-        return character_data
+
+        return resources_dict
     except Exception as e:
         logger.error(f"Ошибка при генерации ресурсов мира: {e}")
         return "Произошла ошибка при генерации ресурсов мира."
@@ -187,10 +189,10 @@ async def update_world_metrics(world_data, initiation_details, max_tokens=1500):
 
         # Генерация метрик с использованием модели GPT
         metrics_data = await client.prompt(prompt, max_tokens)
+        logger.info("Ответ от OpenAI по метрикам получен.", metrics_data)
+        metrics_dict = client.parse_json(metrics_data)
 
-        logger.info("Ответ от OpenAI по метрикам получен.")
-        
-        return metrics_data
+        return metrics_dict
     except Exception as e:
         logger.error(f"Ошибка при генерации метрик: {e}")
         return "Произошла ошибка при генерации метрик."
