@@ -328,12 +328,12 @@ async def generate_world_changes(budget, money_multiplier, character_description
            ```json
            {{
                "financial_evaluation": {{
-                   "estimated_cost": float,  # Сколько денег потребуется на реализацию
-                   "money_multiplier_change": float  # Какая будет дельта изменения роста денег в казне
+                   "estimated_cost": float, 
+                   "money_multiplier_change": float
                }},
                "world_changes": {{
-                   "facts": str,  # Краткое описание изменений мира после инициативы (сухие факты)
-                   "npc_perspective": str  # Описание изменений от лица NPC (с эмоциями, личными историями), именно это сообщение целиком будет отправлено игроку
+                   "facts": str, 
+                   "npc_perspective": str
                }}
            }}
 
